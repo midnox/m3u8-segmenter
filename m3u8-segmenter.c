@@ -194,7 +194,8 @@ void display_usage(void)
 
 int main(int argc, char **argv)
 {
-    double prev_segment_time = 0;
+    const double time_not_set = -1000000;
+    double prev_segment_time = time_not_set;
     unsigned int output_index = 1;
     AVInputFormat *ifmt;
     AVOutputFormat *ofmt;
@@ -442,6 +443,7 @@ int main(int argc, char **argv)
             double t = packet.pts * av_q2d(video_st->time_base);
             if (packet.flags & AV_PKT_FLAG_KEY) segment_time = t;
             if (max_packet_time < t) max_packet_time = t;
+            if (prev_segment_time == time_not_set) prev_segment_time = t;
         }
         else if (video_index < 0) {
             segment_time = packet.pts * av_q2d(audio_st->time_base);
