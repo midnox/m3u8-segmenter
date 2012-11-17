@@ -418,6 +418,7 @@ int main(int argc, char **argv)
     sigaction(SIGTERM, &act, NULL);
     
     double segment_time = 0;
+    double max_packet_time = 0;
     do {
         AVPacket packet;
 
@@ -437,11 +438,14 @@ int main(int argc, char **argv)
         }
 
         // Use video stream as time base and split at keyframes. Otherwise use audio stream
-        if (packet.stream_index == video_index && (packet.flags & AV_PKT_FLAG_KEY)) {
-            segment_time = packet.pts * av_q2d(video_st->time_base);
+        if (packet.stream_index == video_index) {
+            double t = packet.pts * av_q2d(video_st->time_base);
+            if (packet.flags & AV_PKT_FLAG_KEY) segment_time = t;
+            if (max_packet_time < t) max_packet_time = t;
         }
         else if (video_index < 0) {
             segment_time = packet.pts * av_q2d(audio_st->time_base);
+            if (max_packet_time < segment_time) max_packet_time = segment_time;
         }
 
         double seg_duration = segment_time - prev_segment_time;
@@ -519,7 +523,7 @@ int main(int argc, char **argv)
         remove_file = 0;
     }
     
-    segment_duration[last_segment] = segment_time - prev_segment_time;
+    segment_duration[last_segment] = max_packet_time - prev_segment_time;
     if (write_index) {
         write_index_file(options, first_segment, ++last_segment, segment_duration, 1);
     }
