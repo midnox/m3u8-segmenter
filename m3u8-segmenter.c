@@ -376,9 +376,6 @@ int main(int argc, char **argv)
         }
     }
 
-    // Don't print warnings when PTS and DTS are identical.
-    ic->flags |= AVFMT_FLAG_IGNDTS;
-
     av_dump_format(oc, 0, options.output_prefix, 1);
 
     if (video_st) {
