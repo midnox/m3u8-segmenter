@@ -134,10 +134,10 @@ int write_index_file(const struct options_t options, const unsigned int first_se
     }
 
     if (options.num_segments) {
-        snprintf(write_buf, 1024, "#EXTM3U\n#EXT-X-TARGETDURATION:%lu\n#EXT-X-MEDIA-SEQUENCE:%u\n", max_duration, first_segment);
+        snprintf(write_buf, 1024, "#EXTM3U\n#EXT-X-TARGETDURATION:%lu\n#EXT-X-VERSION:3\n#EXT-X-MEDIA-SEQUENCE:%u\n", max_duration, first_segment);
     }
     else {
-        snprintf(write_buf, 1024, "#EXTM3U\n#EXT-X-TARGETDURATION:%lu\n", max_duration);
+        snprintf(write_buf, 1024, "#EXTM3U\n#EXT-X-TARGETDURATION:%lu\n#EXT-X-VERSION:3\n", max_duration);
     }
     if (fwrite(write_buf, strlen(write_buf), 1, index_fp) != 1) {
         fprintf(stderr, "Could not write to m3u8 index file, will not continue writing to index file\n");
