@@ -116,7 +116,7 @@ int write_index_file(const struct options_t options, const unsigned int first_se
     
     unsigned long max_duration = 0;
     for (i=first_segment; i <= last_segment; i++) {
-        int d = ceil(duration[i-1]);
+        unsigned long d = ceil(duration[i-1]);
         if (d > max_duration) max_duration = d;
     }
 
