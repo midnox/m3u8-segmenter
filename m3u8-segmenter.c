@@ -38,7 +38,7 @@ struct options_t {
 
 void handler(int signum);
 static AVStream *add_output_stream(AVFormatContext *output_format_context, AVStream *input_stream);
-int write_index_file(const struct options_t, const unsigned int first_segment, const unsigned int last_segment, const int end);
+int write_index_file(const struct options_t, const unsigned int first_segment, const unsigned int last_segment, const double* duration, const int end);
 void display_usage(void);
 
 
@@ -109,10 +109,16 @@ static AVStream *add_output_stream(AVFormatContext *output_format_context, AVStr
     return output_stream;
 }
 
-int write_index_file(const struct options_t options, const unsigned int first_segment, const unsigned int last_segment, const int end) {
+int write_index_file(const struct options_t options, const unsigned int first_segment, const unsigned int last_segment, const double* duration, const int end) {
     FILE *index_fp;
     char *write_buf;
     unsigned int i;
+    
+    unsigned long max_duration = 0;
+    for (i=first_segment; i <= last_segment; i++) {
+        int d = ceil(duration[i-1]);
+        if (d > max_duration) max_duration = d;
+    }
 
     index_fp = fopen(options.tmp_m3u8_file, "w");
     if (!index_fp) {
@@ -128,10 +134,10 @@ int write_index_file(const struct options_t options, const unsigned int first_se
     }
 
     if (options.num_segments) {
-        snprintf(write_buf, 1024, "#EXTM3U\n#EXT-X-TARGETDURATION:%lu\n#EXT-X-MEDIA-SEQUENCE:%u\n", options.segment_duration, first_segment);
+        snprintf(write_buf, 1024, "#EXTM3U\n#EXT-X-TARGETDURATION:%lu\n#EXT-X-MEDIA-SEQUENCE:%u\n", max_duration, first_segment);
     }
     else {
-        snprintf(write_buf, 1024, "#EXTM3U\n#EXT-X-TARGETDURATION:%lu\n", options.segment_duration);
+        snprintf(write_buf, 1024, "#EXTM3U\n#EXT-X-TARGETDURATION:%lu\n", max_duration);
     }
     if (fwrite(write_buf, strlen(write_buf), 1, index_fp) != 1) {
         fprintf(stderr, "Could not write to m3u8 index file, will not continue writing to index file\n");
@@ -141,7 +147,7 @@ int write_index_file(const struct options_t options, const unsigned int first_se
     }
 
     for (i = first_segment; i <= last_segment; i++) {
-        snprintf(write_buf, 1024, "#EXTINF:%lu,\n%s%s-%u.ts\n", options.segment_duration, options.url_prefix, options.output_prefix, i);
+        snprintf(write_buf, 1024, "#EXTINF:%.3f,\n%s%s-%u.ts\n", duration[i-1], options.url_prefix, options.output_prefix, i);
         if (fwrite(write_buf, strlen(write_buf), 1, index_fp) != 1) {
             fprintf(stderr, "Could not write to m3u8 index file, will not continue writing to index file\n");
             free(write_buf);
@@ -203,6 +209,7 @@ int main(int argc, char **argv)
     int audio_index = -1;
     unsigned int first_segment = 1;
     unsigned int last_segment = 0;
+    double segment_duration[5000];
     int write_index = 1;
     int decode_done;
     char *dot;
@@ -401,7 +408,7 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    write_index = !write_index_file(options, first_segment, last_segment, 0);
+    write_index = !write_index_file(options, first_segment, last_segment, segment_duration, 0);
 
     /* Setup signals */
     memset(&act, 0, sizeof(act));
@@ -409,9 +416,9 @@ int main(int argc, char **argv)
 
     sigaction(SIGINT, &act, NULL);
     sigaction(SIGTERM, &act, NULL);
-
+    
+    double segment_time = 0;
     do {
-        double segment_time = prev_segment_time;
         AVPacket packet;
 
         if (terminate) {
@@ -436,12 +443,9 @@ int main(int argc, char **argv)
         else if (video_index < 0) {
             segment_time = packet.pts * av_q2d(audio_st->time_base);
         }
-        else {
-          segment_time = prev_segment_time;
-        }
 
-
-        if (segment_time - prev_segment_time >= options.segment_duration) {
+        double seg_duration = segment_time - prev_segment_time;
+        if (seg_duration >= options.segment_duration) {
             av_write_trailer(oc);   // close ts file and free memory
             avio_flush(oc->pb);
             avio_close(oc->pb);
@@ -453,9 +457,10 @@ int main(int argc, char **argv)
             else {
                 remove_file = 0;
             }
-
+            
+            segment_duration[last_segment] = seg_duration;
             if (write_index) {
-                write_index = !write_index_file(options, first_segment, ++last_segment, 0);
+                write_index = !write_index_file(options, first_segment, ++last_segment, segment_duration, 0);
             }
 
             if (remove_file) {
@@ -476,6 +481,7 @@ int main(int argc, char **argv)
             }
 
             prev_segment_time = segment_time;
+            segment_time = 0;
         }
 
         ret = av_interleaved_write_frame(oc, &packet);
@@ -512,9 +518,10 @@ int main(int argc, char **argv)
     else {
         remove_file = 0;
     }
-
+    
+    segment_duration[last_segment] = segment_time - prev_segment_time;
     if (write_index) {
-        write_index_file(options, first_segment, ++last_segment, 1);
+        write_index_file(options, first_segment, ++last_segment, segment_duration, 1);
     }
 
     if (remove_file) {
