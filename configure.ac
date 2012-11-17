@@ -39,7 +39,7 @@ AC_SUBST(FFMPEG_LIBS)
 
 AC_SUBST(PACKAGE_VERSION)
 
-CFLAGS="$CFLAGS -std=c99 -Wall -Wextra -Wpointer-arith -funsigned-char -Werror -Wstrict-prototypes -Wmissing-prototypes -Waggregate-return -Wcast-align -Wcast-qual -Wnested-externs -Wshadow -Wbad-function-cast -Wwrite-strings"
+CFLAGS="$CFLAGS -std=gnu99 -Wall -Wextra -Wpointer-arith -funsigned-char -Werror -Wstrict-prototypes -Wmissing-prototypes -Waggregate-return -Wcast-align -Wcast-qual -Wnested-externs -Wshadow -Wbad-function-cast -Wwrite-strings"
 
 
 AC_CONFIG_FILES([Makefile tests/Makefile])
