@@ -18,3 +18,8 @@ ts_decode/
 
 xcuserdata
 .DS_Store
+
+autom4te.cache
+*.o
+Makefile.in
+aclocal.m4
